@@ -47,6 +47,10 @@ class BlockchainFeesBot:
             [
                 InlineKeyboardButton("🟢 Solana", callback_data="solana"),
                 InlineKeyboardButton("🔴 Tron", callback_data="tron")
+            ],
+            [
+                InlineKeyboardButton("🟪 Polygon", callback_data="polygon"),
+                InlineKeyboardButton("🔷 Arbitrum", callback_data="arbitrum")
             ]
         ]
         
@@ -90,6 +94,10 @@ class BlockchainFeesBot:
                 return await self.get_ton_fees()
             elif blockchain == "tron":
                 return await self.get_tron_fees()
+            elif blockchain == "polygon":
+                return await self.get_polygon_fees()
+            elif blockchain == "arbitrum":
+                return await self.get_arbitrum_fees()
             else:
                 return "❌ Неизвестный блокчейн"
         except Exception as e:
@@ -257,6 +265,70 @@ class BlockchainFeesBot:
                 f"📡 Bandwidth: 0.001 TRX\n"
                 f"⚡ Energy: ~15 TRX (для смарт-контрактов)\n\n"
                 f"💡 Обычные переводы: очень дешево"
+            )
+    
+    async def get_polygon_fees(self) -> str:
+        """Получение комиссий Polygon через PolygonScan API"""
+        try:
+            response = requests.get(
+                "https://api.polygonscan.com/api?module=gastracker&action=gasoracle",
+                timeout=10
+            )
+            data = response.json()
+            
+            if data['status'] == '1':
+                safe = data['result']['SafeGasPrice']
+                standard = data['result']['ProposeGasPrice']
+                fast = data['result']['FastGasPrice']
+                
+                return (
+                    f"🟪 **Polygon (MATIC)**\n\n"
+                    f"⚡ Быстрая: {fast} Gwei\n"
+                    f"📊 Стандартная: {standard} Gwei\n"
+                    f"🐌 Безопасная: {safe} Gwei\n\n"
+                    f"💡 Обычно 30-150 Gwei для Polygon"
+                )
+            else:
+                return "❌ Не удалось получить данные Polygon"
+        except Exception as e:
+            logger.error(f"Ошибка API Polygon: {e}")
+            return (
+                f"🟪 **Polygon (MATIC)**\n\n"
+                f"💰 Стандартная комиссия: ~50-100 Gwei\n"
+                f"📊 Комиссия зависит от загрузки сети\n\n"
+                f"💡 Намного дешевле Ethereum"
+            )
+    
+    async def get_arbitrum_fees(self) -> str:
+        """Получение комиссий Arbitrum через Arbiscan API"""
+        try:
+            response = requests.get(
+                "https://api.arbiscan.io/api?module=gastracker&action=gasoracle",
+                timeout=10
+            )
+            data = response.json()
+            
+            if data['status'] == '1':
+                safe = data['result']['SafeGasPrice']
+                standard = data['result']['ProposeGasPrice']
+                fast = data['result']['FastGasPrice']
+                
+                return (
+                    f"🔷 **Arbitrum (ETH)**\n\n"
+                    f"⚡ Быстрая: {fast} Gwei\n"
+                    f"📊 Стандартная: {standard} Gwei\n"
+                    f"🐌 Безопасная: {safe} Gwei\n\n"
+                    f"💡 L2 решение с низкими комиссиями"
+                )
+            else:
+                return "❌ Не удалось получить данные Arbitrum"
+        except Exception as e:
+            logger.error(f"Ошибка API Arbitrum: {e}")
+            return (
+                f"🔷 **Arbitrum (ETH)**\n\n"
+                f"💰 Стандартная комиссия: ~0.1-1 Gwei\n"
+                f"📊 Очень низкие комиссии благодаря L2\n\n"
+                f"💡 Layer 2 решение для Ethereum"
             )
     
     def run(self):
