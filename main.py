@@ -190,7 +190,7 @@ class BlockchainFeesBot:
             
             return (
                 f"🟢 **Solana (SOL)**\n\n"
-                f"💰 Стандартная комиссия: {fee_sol} SOL\n"
+                f"💰 Стандартная комиссия: {fee_sol:.6f} SOL\n"
                 f"💵 В долларах: ${fee_usd:.6f} USD\n"
                 f"📈 Курс SOL: ${sol_price:.2f}\n\n"
                 f"💡 Фиксированная комиссия для большинства транзакций"
