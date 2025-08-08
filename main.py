@@ -306,30 +306,41 @@ class BlockchainFeesBot:
                 "https://api.arbiscan.io/api?module=gastracker&action=gasoracle",
                 timeout=10
             )
-            data = response.json()
             
-            if data['status'] == '1':
-                safe = data['result']['SafeGasPrice']
-                standard = data['result']['ProposeGasPrice']
-                fast = data['result']['FastGasPrice']
+            if response.status_code == 200:
+                data = response.json()
                 
-                return (
-                    f"🔷 **Arbitrum (ETH)**\n\n"
-                    f"⚡ Быстрая: {fast} Gwei\n"
-                    f"📊 Стандартная: {standard} Gwei\n"
-                    f"🐌 Безопасная: {safe} Gwei\n\n"
-                    f"💡 L2 решение с низкими комиссиями"
-                )
+                if data.get('status') == '1' and 'result' in data:
+                    safe = data['result']['SafeGasPrice']
+                    standard = data['result']['ProposeGasPrice']
+                    fast = data['result']['FastGasPrice']
+                    
+                    return (
+                        f"🔷 **Arbitrum (ETH)**\n\n"
+                        f"⚡ Быстрая: {fast} Gwei\n"
+                        f"📊 Стандартная: {standard} Gwei\n"
+                        f"🐌 Безопасная: {safe} Gwei\n\n"
+                        f"💡 L2 решение с низкими комиссиями"
+                    )
+                else:
+                    logger.warning(f"Неожиданный ответ API Arbitrum: {data}")
             else:
-                return "❌ Не удалось получить данные Arbitrum"
+                logger.warning(f"HTTP {response.status_code} от API Arbitrum")
+                
+        except requests.RequestException as e:
+            logger.error(f"Ошибка запроса к API Arbitrum: {e}")
         except Exception as e:
-            logger.error(f"Ошибка API Arbitrum: {e}")
-            return (
-                f"🔷 **Arbitrum (ETH)**\n\n"
-                f"💰 Стандартная комиссия: ~0.1-1 Gwei\n"
-                f"📊 Очень низкие комиссии благодаря L2\n\n"
-                f"💡 Layer 2 решение для Ethereum"
-            )
+            logger.error(f"Неожиданная ошибка API Arbitrum: {e}")
+            
+        # Возвращаем фиксированную информацию при любой ошибке
+        return (
+            f"🔷 **Arbitrum (ETH)**\n\n"
+            f"💰 Типичная комиссия: 0.1-2 Gwei\n"
+            f"📊 Очень низкие комиссии благодаря L2\n"
+            f"⚡ Быстрые транзакции (~1-2 сек)\n\n"
+            f"💡 Layer 2 решение для Ethereum\n"
+            f"🔄 Данные API временно недоступны"
+        )
     
     def run(self):
         """Запуск бота"""
