@@ -372,49 +372,85 @@ class BlockchainFeesBot:
                 "https://api.polygonscan.com/api?module=gastracker&action=gasoracle",
                 timeout=10
             )
-            data = response.json()
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if data.get('status') == '1' and 'result' in data:
+                    safe = float(data['result']['SafeGasPrice'])
+                    standard = float(data['result']['ProposeGasPrice'])
+                    fast = float(data['result']['FastGasPrice'])
+                    
+                    # Проверяем, что значения не равны нулю
+                    if safe == 0 and standard == 0 and fast == 0:
+                        logger.warning("API Polygon вернул нулевые значения")
+                    else:
+                        # Получаем цену MATIC
+                        matic_price = await self.get_token_price("matic-network")
+                        gas_limit = 21000
 
-            if data['status'] == '1':
-                safe = float(data['result']['SafeGasPrice'])
-                standard = float(data['result']['ProposeGasPrice'])
-                fast = float(data['result']['FastGasPrice'])
+                        if matic_price:
+                            safe_usd = (safe * gas_limit * 0.000000001) * matic_price
+                            standard_usd = (standard * gas_limit * 0.000000001) * matic_price
+                            fast_usd = (fast * gas_limit * 0.000000001) * matic_price
 
-                # Получаем цену MATIC
-                matic_price = await self.get_token_price("matic-network")
-
-                # Стандартная транзакция Polygon ~21000 gas
-                gas_limit = 21000
-
-                if matic_price:
-                    safe_usd = (safe * gas_limit * 0.000000001) * matic_price
-                    standard_usd = (standard * gas_limit * 0.000000001) * matic_price
-                    fast_usd = (fast * gas_limit * 0.000000001) * matic_price
-
-                    return (
-                        f"🟪 **Polygon (MATIC)**\n\n"
-                        f"⚡ Быстрая: {fast} Gwei (≈ ${fast_usd:.5f})\n"
-                        f"📊 Стандартная: {standard} Gwei (≈ ${standard_usd:.5f})\n"
-                        f"🐌 Безопасная: {safe} Gwei (≈ ${safe_usd:.5f})\n\n"
-                        f"💡 Расчет для простого перевода (21k gas)\n"
-                        f"📈 Курс MATIC: ${matic_price:.4f}"
-                    )
+                            return (
+                                f"🟪 **Polygon (MATIC)**\n\n"
+                                f"⚡ Быстрая: {fast} Gwei (≈ ${fast_usd:.5f})\n"
+                                f"📊 Стандартная: {standard} Gwei (≈ ${standard_usd:.5f})\n"
+                                f"🐌 Безопасная: {safe} Gwei (≈ ${safe_usd:.5f})\n\n"
+                                f"💡 Расчет для простого перевода (21k gas)\n"
+                                f"📈 Курс MATIC: ${matic_price:.4f}"
+                            )
+                        else:
+                            return (
+                                f"🟪 **Polygon (MATIC)**\n\n"
+                                f"⚡ Быстрая: {fast} Gwei\n"
+                                f"📊 Стандартная: {standard} Gwei\n"
+                                f"🐌 Безопасная: {safe} Gwei\n\n"
+                                f"💡 Комиссии Polygon обычно очень низкие"
+                            )
                 else:
-                    return (
-                        f"🟪 **Polygon (MATIC)**\n\n"
-                        f"⚡ Быстрая: {fast} Gwei\n"
-                        f"📊 Стандартная: {standard} Gwei\n"
-                        f"🐌 Безопасная: {safe} Gwei\n\n"
-                        f"💡 Обычно 30-150 Gwei для Polygon"
-                    )
+                    logger.warning(f"Неожиданный ответ API Polygon: {data}")
             else:
-                return "❌ Не удалось получить данные Polygon"
+                logger.warning(f"HTTP {response.status_code} от API Polygon")
+                
+        except requests.RequestException as e:
+            logger.error(f"Ошибка запроса к API Polygon: {e}")
         except Exception as e:
-            logger.error(f"Ошибка API Polygon: {e}")
+            logger.error(f"Неожиданная ошибка API Polygon: {e}")
+
+        # Возвращаем фиксированную информацию при любой ошибке или нулевых значениях
+        matic_price = await self.get_token_price("matic-network")
+        
+        if matic_price:
+            # Типичные комиссии Polygon в Gwei
+            safe_gwei = 30
+            standard_gwei = 50
+            fast_gwei = 80
+            gas_limit = 21000
+            
+            safe_usd = (safe_gwei * gas_limit * 0.000000001) * matic_price
+            standard_usd = (standard_gwei * gas_limit * 0.000000001) * matic_price
+            fast_usd = (fast_gwei * gas_limit * 0.000000001) * matic_price
+            
             return (
                 f"🟪 **Polygon (MATIC)**\n\n"
-                f"💰 Стандартная комиссия: ~50-100 Gwei\n"
-                f"📊 Комиссия зависит от загрузки сети\n\n"
-                f"💡 Намного дешевле Ethereum"
+                f"⚡ Быстрая: ~{fast_gwei} Gwei (≈ ${fast_usd:.5f})\n"
+                f"📊 Стандартная: ~{standard_gwei} Gwei (≈ ${standard_usd:.5f})\n"
+                f"🐌 Безопасная: ~{safe_gwei} Gwei (≈ ${safe_usd:.5f})\n\n"
+                f"💡 Типичные значения для Polygon\n"
+                f"📈 Курс MATIC: ${matic_price:.4f}\n"
+                f"🔄 Данные API временно недоступны"
+            )
+        else:
+            return (
+                f"🟪 **Polygon (MATIC)**\n\n"
+                f"⚡ Быстрая: ~80 Gwei\n"
+                f"📊 Стандартная: ~50 Gwei\n"
+                f"🐌 Безопасная: ~30 Gwei\n\n"
+                f"💡 Типичные комиссии намного дешевле Ethereum\n"
+                f"🔄 Данные API временно недоступны"
             )
 
     async def get_arbitrum_fees(self) -> str:
